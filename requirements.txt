@@ -1,0 +1,7 @@
+pillow
+transformers
+torch 
+torchvision
+torchaudio
+albumentations
+"fastapi[standard]"
