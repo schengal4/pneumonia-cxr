@@ -1,0 +1,41 @@
+{
+  "architectures": [
+    "PneumoniaModel"
+  ],
+  "auto_map": {
+    "AutoConfig": "configuration.PneumoniaConfig",
+    "AutoModel": "modeling.PneumoniaModel"
+  },
+  "backbone": "tf_efficientnetv2_s",
+  "cls_dropout": 0.1,
+  "cls_num_classes": 1,
+  "decoder_attention_type": null,
+  "decoder_center_block": false,
+  "decoder_channels": [
+    256,
+    128,
+    64,
+    32,
+    16
+  ],
+  "decoder_n_blocks": 5,
+  "decoder_norm_layer": "bn",
+  "encoder_channels": [
+    24,
+    48,
+    64,
+    160,
+    256
+  ],
+  "feature_dim": 256,
+  "img_size": [
+    512,
+    512
+  ],
+  "in_chans": 1,
+  "model_type": "pneumonia",
+  "seg_dropout": 0.1,
+  "seg_num_classes": 1,
+  "torch_dtype": "float32",
+  "transformers_version": "4.47.0"
+}
