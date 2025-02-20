@@ -186,8 +186,6 @@ pneumonia-cxr-app/
 
 ---
 
-## License and Disclaimer
-
-- **License**: This repository does not include an explicit license. If you intend to distribute or modify this code, please add or consult an appropriate open-source license.
+## Disclaimer
 - **Disclaimer**: This tool is **not** a medical device. It is intended for research or demonstration purposes only and **cannot** replace professional medical diagnosis or advice. Use at your own risk and consult a qualified medical professional for clinical decisions.
 
