@@ -4,4 +4,4 @@ torch
 torchvision
 torchaudio
 albumentations
-"fastapi[standard]"
+fastapi[standard]
