@@ -41,7 +41,7 @@ Upload chest X-ray images to detect pneumonia and visualize affected lung region
 - Ensure images are clear and properly oriented
 - Check `/health` endpoint for service status
 - View `/example` for sample prediction
-- If you see a 403 Forbidden error, refresh this page and try again.
+- If you see a "403 Forbidden" error, refresh this page and try again.
 
 **Model**: [ianpan/pneumonia-cxr](https://huggingface.co/ianpan/pneumonia-cxr) from Hugging Face
     """,
