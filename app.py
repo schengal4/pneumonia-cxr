@@ -14,6 +14,8 @@ from datetime import datetime
 from typing import Dict, Any
 import logging
 
+import traceback
+
 
 
 # Add this to your FastAPI app initialization for Swagger UI
@@ -102,16 +104,19 @@ def validate_upload_file(file: UploadFile, file_bytes: bytes) -> None:
         raise HTTPException(status_code=400, detail="Invalid image file format")
 def log_request_start(request_id: str, endpoint: str, filename: str, file_size: int) -> None:
     """Structured logging for request start"""
-    logger.info(
-        "REQUEST_START",
-        extra={
-            "request_id": request_id,
-            "endpoint": endpoint,
-            "filename": filename,
-            "file_size_bytes": file_size,
-            "timestamp": datetime.utcnow().isoformat()
-        }
-    )
+    try:
+      logger.info(
+          "REQUEST_START",
+          extra={
+              "request_id": request_id,
+              "endpoint": endpoint,
+              "upload_filename": filename,
+              "file_size_bytes": file_size,
+              "timestamp": datetime.utcnow().isoformat()
+          }
+      )
+    except Exception as e:
+        logger.error("Failed to log request start.")
 
 def log_prediction_result(request_id: str, label: str, probability: float, processing_time: float) -> None:
     """Structured logging for prediction results"""
@@ -415,17 +420,28 @@ async def predict(file: UploadFile = File(...)) -> HTMLResponse:
     start_time = datetime.utcnow()
     
     try:
+        print(f"DEBUG: Starting predict for file: {file.filename}")
         if model is None:
+            print("DEBUG: Model is None")
             log_error(request_id, "MODEL_UNAVAILABLE", "Model not loaded", "predict")
             raise HTTPException(status_code=503, detail="Model not available")
         
+        print("DEBUG: Reading file bytes")
         file_bytes = await file.read()
+        print(f"DEBUG: File size: {len(file_bytes)}")
+        
         log_request_start(request_id, "predict", file.filename or "unknown", len(file_bytes))
+        print(f"DEBUG: Logged request start")
         
         # Validation and processing (same as predict_json)
         try:
-            validate_upload_file(file, file_bytes)
+            print("DEBUG: Starting validation")
+            validate_upload_file(file, file_bytes)  # This might be the issue
+            print("DEBUG: Validation passed")
+
+            print("DEBUG: Preprocessing image")
             input_tensor, resized_pil = preprocess_image(file_bytes)
+            print("DEBUG: Preprocessing complete")
         except HTTPException as e:
             log_error(request_id, "VALIDATION_ERROR", e.detail, "predict")
             raise
