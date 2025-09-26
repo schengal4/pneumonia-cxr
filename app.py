@@ -28,7 +28,6 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-@app.on_event("startup")
 # Updated model loading with error handling
 @app.on_event("startup")
 async def load_model():
