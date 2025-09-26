@@ -41,6 +41,7 @@ Upload chest X-ray images to detect pneumonia and visualize affected lung region
 - Ensure images are clear and properly oriented
 - Check `/health` endpoint for service status
 - View `/example` for sample prediction
+- If you see a 403 Forbidden error, refresh this page and try again.
 
 **Model**: [ianpan/pneumonia-cxr](https://huggingface.co/ianpan/pneumonia-cxr) from Hugging Face
     """,
@@ -420,28 +421,28 @@ async def predict(file: UploadFile = File(...)) -> HTMLResponse:
     start_time = datetime.utcnow()
     
     try:
-        print(f"DEBUG: Starting predict for file: {file.filename}")
+        # print(f"DEBUG: Starting predict for file: {file.filename}")
         if model is None:
-            print("DEBUG: Model is None")
+            # print("DEBUG: Model is None")
             log_error(request_id, "MODEL_UNAVAILABLE", "Model not loaded", "predict")
             raise HTTPException(status_code=503, detail="Model not available")
         
-        print("DEBUG: Reading file bytes")
+        # print("DEBUG: Reading file bytes")
         file_bytes = await file.read()
-        print(f"DEBUG: File size: {len(file_bytes)}")
+        # print(f"DEBUG: File size: {len(file_bytes)}")
         
         log_request_start(request_id, "predict", file.filename or "unknown", len(file_bytes))
-        print(f"DEBUG: Logged request start")
+        # print(f"DEBUG: Logged request start")
         
         # Validation and processing (same as predict_json)
         try:
-            print("DEBUG: Starting validation")
+            # print("DEBUG: Starting validation")
             validate_upload_file(file, file_bytes)  # This might be the issue
-            print("DEBUG: Validation passed")
+            # print("DEBUG: Validation passed")
 
-            print("DEBUG: Preprocessing image")
+            # print("DEBUG: Preprocessing image")
             input_tensor, resized_pil = preprocess_image(file_bytes)
-            print("DEBUG: Preprocessing complete")
+            # print("DEBUG: Preprocessing complete")
         except HTTPException as e:
             log_error(request_id, "VALIDATION_ERROR", e.detail, "predict")
             raise
