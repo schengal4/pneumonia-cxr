@@ -12,7 +12,6 @@ import base64
 import uuid
 from datetime import datetime
 from typing import Dict, Any
-import magic  # pip install python-magic
 import logging
 
 
@@ -91,14 +90,16 @@ def validate_upload_file(file: UploadFile, file_bytes: bytes) -> None:
     if file_size > 10 * 1024 * 1024:  # 10MB limit
         raise HTTPException(status_code=400, detail="File too large (max 10MB)")
     
-    # Validate actual file content using python-magic
-    try:
-        mime_type = magic.from_buffer(file_bytes, mime=True)
-        if mime_type not in ['image/png', 'image/jpeg']:
-            raise HTTPException(status_code=400, detail="File content doesn't match extension")
-    except Exception:
-        # Fallback if python-magic not available
-        logger.warning("python-magic not available for file validation")
+  # File header validation (works without magic)
+    if len(file_bytes) < 8:
+        raise HTTPException(status_code=400, detail="File too small to be valid image")
+    
+    header = file_bytes[:8]
+    is_png = header.startswith(b'\x89PNG\r\n\x1a\n')
+    is_jpeg = header.startswith(b'\xff\xd8\xff')
+    
+    if not (is_png or is_jpeg):
+        raise HTTPException(status_code=400, detail="Invalid image file format")
 def log_request_start(request_id: str, endpoint: str, filename: str, file_size: int) -> None:
     """Structured logging for request start"""
     logger.info(
