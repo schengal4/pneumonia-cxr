@@ -1,0 +1,9 @@
+pillow
+transformers
+torch 
+torchvision
+torchaudio
+albumentations
+fastapi[standard]
+timm
+python-magic
