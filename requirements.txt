@@ -7,3 +7,4 @@ albumentations
 fastapi[standard]
 timm
 python-magic
+python-magic-bin
