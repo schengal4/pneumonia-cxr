@@ -17,7 +17,34 @@ import logging
 
 
 
-app = FastAPI()
+# Add this to your FastAPI app initialization for Swagger UI
+app = FastAPI(
+    title="Pneumonia-CXR Detection API",
+    description="""
+## Pneumonia Detection and Segmentation API
+
+Upload chest X-ray images to detect pneumonia and visualize affected lung regions.
+
+### Quick Start
+1. **Upload Image**: Use POST endpoints with PNG/JPG chest X-ray files (max 10MB)
+2. **Get Results**: Receive pneumonia probability and highlighted segmentation overlay
+3. **Choose Format**: HTML page (`/predict`) or JSON response (`/predict_json`)
+
+### Important Disclaimers
+- **Not a medical device** - For research/educational purposes only
+- **Not for clinical diagnosis** - Always consult healthcare professionals
+- **Dataset limitations** - Trained on specific datasets, may not generalize
+
+### Usage Tips
+- Use frontal chest X-ray images for best results
+- Ensure images are clear and properly oriented
+- Check `/health` endpoint for service status
+- View `/example` for sample prediction
+
+**Model**: [ianpan/pneumonia-cxr](https://huggingface.co/ianpan/pneumonia-cxr) from Hugging Face
+    """,
+    version="1.0.0"
+)
 model = None  # Global model reference
 
 # Configure structured logging
@@ -226,144 +253,93 @@ def health_check():
 @app.get("/", response_class=HTMLResponse)
 def home() -> HTMLResponse:
     """
-    Expanded Home page for the Pneumonia-CXR App.
+    Concise home page with clear usage instructions.
     """
-    content = f"""
+    content = """
     <html>
       <head>
-        <title>Pneumonia-CXR App</title>
+        <title>Pneumonia-CXR Detection API</title>
         <style>
-          body {{
-            font-family: Arial, sans-serif;
-            margin: 20px;
-            line-height: 1.6;
-          }}
-          h1, h2, h3 {{
-            margin-top: 1em;
-          }}
-          ul {{
-            list-style-type: disc;
-            margin-left: 1.5em;
-          }}
-          .note {{
-            background: #fafaf0;
-            border-left: 4px solid #ffd700;
-            padding: 10px;
-            margin-top: 1em;
-          }}
+          body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; max-width: 800px; }
+          .header { background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 30px; }
+          .warning { background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 20px 0; }
+          .quick-start { background: #e8f5e8; padding: 20px; border-radius: 8px; margin: 20px 0; }
+          .endpoint { background: #f8f9fa; padding: 10px; margin: 10px 0; border-left: 4px solid #007bff; }
+          pre { background: #f4f4f4; padding: 10px; border-radius: 4px; }
         </style>
       </head>
       <body>
-        <h1>Welcome to the Pneumonia-CXR App</h1>
-
-        <p>
-          This application uses a custom <strong>Hugging Face Transformers</strong> model 
-          (<a href="https://huggingface.co/ianpan/pneumonia-cxr" target="_blank">ianpan/pneumonia-cxr</a>)
-          to detect and segment potential pneumonia regions on frontal chest X-rays. 
-          The model was trained on publicly available radiology datasets, including:
-        </p>
-        <ul>
-          <li>
-            <a href="https://www.kaggle.com/competitions/rsna-pneumonia-detection-challenge" target="_blank">
-              RSNA Pneumonia Detection Challenge
-            </a>
-          </li>
-          <li>
-            <a href="https://www.kaggle.com/competitions/siim-covid19-detection" target="_blank">
-              SIIM-FISABIO-RSNA COVID-19 Detection
-            </a>
-          </li>
-        </ul>
-
-        <p>
-          The model performs two main tasks:
-          <ul>
-            <li><strong>Classification</strong>: Estimates the probability that an X-ray shows pneumonia.</li>
-            <li><strong>Segmentation</strong>: Generates a mask highlighting suspicious lung areas.</li>
-          </ul>
-        </p>
-
-        <div class="note">
-          <strong>Important Disclaimer:</strong><br/>
-          This tool is <strong>not</strong> a medical device and does <strong>not</strong> provide a definitive 
-          medical diagnosis. It is intended for research or educational demonstration only. 
-          Always consult a qualified healthcare professional for medical advice or diagnosis.
+        <div class="header">
+          <h1>Pneumonia-CXR Detection API</h1>
+          <p>AI-powered pneumonia detection and lung segmentation for chest X-rays</p>
         </div>
 
-        <h2>How to Use</h2>
-        <p>
-          You can interact with the following endpoints to see how the model performs on sample images 
-          or your own uploads:
-        </p>
+        <div class="warning">
+          <strong>⚠️ Important:</strong> This is NOT a medical device. For research/educational use only. 
+          Always consult qualified healthcare professionals for medical diagnosis.
+        </div>
+
+        <div class="quick-start">
+          <h2>Quick Start Guide</h2>
+          <ol>
+            <li><strong>Upload</strong> a chest X-ray image (PNG/JPG, max 10MB)</li>
+            <li><strong>Choose</strong> HTML display or JSON response</li>
+            <li><strong>Review</strong> pneumonia probability and highlighted regions</li>
+          </ol>
+        </div>
+
+        <h2>Available Endpoints</h2>
+        
+        <div class="endpoint">
+          <strong>GET /example</strong><br>
+          View sample prediction with demo chest X-ray
+        </div>
+
+        <div class="endpoint">
+          <strong>POST /predict</strong><br>
+          Upload image → Get HTML page with results and overlay
+        </div>
+
+        <div class="endpoint">
+          <strong>POST /predict_json</strong><br>
+          Upload image → Get JSON response with base64-encoded overlay
+        </div>
+
+        <div class="endpoint">
+          <strong>GET /health</strong><br>
+          Check service status and model availability
+        </div>
+        <h2>What You Get</h2>
         <ul>
-          <li>
-            <strong>GET <code>/example</code></strong> – Demonstrates a sample chest X-ray (source: https://pmc.ncbi.nlm.nih.gov/articles/PMC4845314/) 
-            (from <code>content/chest_xray.png</code>) with an overlaid segmentation mask 
-            at the <em>original</em> image size.
-          </li>
-          <li>
-            <strong>POST <code>/predict</code></strong> – Upload an image (PNG/JPG). 
-            Returns an HTML page containing the probability, label, and red overlay 
-            (currently shown at 512x512).
-          </li>
-          <li>
-            <strong>POST <code>/predict_json</code></strong> – Upload an image (PNG/JPG). 
-            Returns a JSON response with:
-            <ul>
-              <li><code>label</code> (PNEUMONIA/NORMAL)</li>
-              <li><code>pneumonia_prob</code> (float)</li>
-              <li><code>image</code> (base64-encoded PNG of the overlay)</li>
-            </ul>
-          </li>
+          <li><strong>Classification</strong>: PNEUMONIA or NORMAL label with probability (0.0-1.0)</li>
+          <li><strong>Segmentation</strong>: Red overlay highlighting suspicious lung regions</li>
+          <li><strong>Metadata</strong>: Processing time and request ID for tracking</li>
         </ul>
 
+        <h2>File Requirements</h2>
+        <ul>
+          <li>Format: PNG or JPG</li>
+          <li>Size: Maximum 10MB</li>
+          <li>Content: Frontal chest X-ray images work best</li>
+          <li>Quality: Clear, properly oriented images recommended</li>
+        </ul>
+
+        <h2>Model Information</h2>
         <p>
-          For quick tests, you can use <a href="/docs" target="_blank">Swagger UI</a> or 
-          <a href="/redoc" target="_blank">ReDoc</a> to upload files interactively.
+          <strong>Model</strong>: <a href="https://huggingface.co/ianpan/pneumonia-cxr" target="_blank">ianpan/pneumonia-cxr</a><br>
+          <strong>Architecture</strong>: EfficientNetV2-S encoder with U-Net decoder<br>
+          <strong>Training Data</strong>: RSNA Pneumonia Detection Challenge, SIIM-FISABIO-RSNA COVID-19 Detection
         </p>
 
-        <h3>Installation & Running Locally</h3>
-        <p>
-          If you cloned this repository, install dependencies from 
-          <code>requirements.txt</code>:
-        </p>
-        <pre>
-pip install -r requirements.txt
-        </pre>
-        <p>Then run the app with:</p>
-        <pre>
-uvicorn app:app --reload --host 0.0.0.0 --port 8000
-        </pre>
-        <p>
-          Open your browser at 
-          <a href="http://127.0.0.1:8000" target="_blank">http://127.0.0.1:8000</a> 
-          to see this homepage. 
-        </p>
+        <div class="warning">
+          <strong>Limitations:</strong> Model predictions are based on specific training datasets 
+          and may not generalize to all patient populations or imaging conditions. 
+          This tool cannot replace professional medical evaluation.
+        </div>
 
-        <h3>Technical Details</h3>
-        <p>
-          Under the hood, this app:
-          <ul>
-            <li>Uses <strong>PyTorch</strong> + <strong>timm</strong> for the model.</li>
-            <li>Leverages a <strong>U-Net</strong> style decoder for segmentation.</li>
-            <li>Applies thresholding to produce a binary mask for the overlay.</li>
-            <li>Embeds the resulting overlay image in HTML or returns it as base64 in JSON.</li>
-          </ul>
-        </p>
-
-        <h3>Limitations & Notes</h3>
-        <p>
-          - The model’s predictions are based on patterns learned from specific datasets; it may not 
-            generalize to all patient populations or image sources.<br/>
-          - For actual medical concerns, please consult a licensed healthcare professional.
-        </p>
-
-        <hr/>
-        <p style="font-size: 0.9em;">
-          <em>
-            &copy; 2023 Pneumonia-CXR. 
-            This application is provided for demonstration purposes only.
-          </em>
+        <hr>
+        <p style="color: #666; font-size: 0.9em;">
+          Pneumonia-CXR Detection API | Research and Educational Use Only
         </p>
       </body>
     </html>
