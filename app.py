@@ -13,6 +13,7 @@ import uuid
 from datetime import datetime
 from typing import Dict, Any
 import logging
+import gc
 
 import traceback
 
@@ -411,8 +412,6 @@ def example() -> HTMLResponse:
 
     return HTMLResponse(content=html_content, status_code=200)
 
-
-# Updated predict endpoint with same enhancements
 @app.post("/predict")
 async def predict(file: UploadFile = File(...)) -> HTMLResponse:
     """HTML prediction endpoint with structured logging and validation"""
@@ -420,29 +419,25 @@ async def predict(file: UploadFile = File(...)) -> HTMLResponse:
     request_id = str(uuid.uuid4())[:8]
     start_time = datetime.utcnow()
     
+    # Variables for cleanup
+    file_bytes = None
+    input_tensor = None
+    resized_pil = None
+    outputs = None
+    seg_mask = None
+    result_img = None
+    
     try:
-        # print(f"DEBUG: Starting predict for file: {file.filename}")
         if model is None:
-            # print("DEBUG: Model is None")
             log_error(request_id, "MODEL_UNAVAILABLE", "Model not loaded", "predict")
             raise HTTPException(status_code=503, detail="Model not available")
         
-        # print("DEBUG: Reading file bytes")
         file_bytes = await file.read()
-        # print(f"DEBUG: File size: {len(file_bytes)}")
-        
         log_request_start(request_id, "predict", file.filename or "unknown", len(file_bytes))
-        # print(f"DEBUG: Logged request start")
         
-        # Validation and processing (same as predict_json)
         try:
-            # print("DEBUG: Starting validation")
-            validate_upload_file(file, file_bytes)  # This might be the issue
-            # print("DEBUG: Validation passed")
-
-            # print("DEBUG: Preprocessing image")
+            validate_upload_file(file, file_bytes)
             input_tensor, resized_pil = preprocess_image(file_bytes)
-            # print("DEBUG: Preprocessing complete")
         except HTTPException as e:
             log_error(request_id, "VALIDATION_ERROR", e.detail, "predict")
             raise
@@ -450,7 +445,6 @@ async def predict(file: UploadFile = File(...)) -> HTMLResponse:
             log_error(request_id, "PREPROCESSING_ERROR", str(e), "predict")
             raise HTTPException(status_code=400, detail="Failed to process image")
         
-        # Inference and response generation
         try:
             with torch.no_grad():
                 outputs = model(input_tensor)
@@ -495,43 +489,63 @@ async def predict(file: UploadFile = File(...)) -> HTMLResponse:
     except Exception as e:
         log_error(request_id, "UNEXPECTED_ERROR", str(e), "predict")
         raise HTTPException(status_code=500, detail="Internal server error")
+    
+    finally:
+        # Critical: Clean up large objects to prevent memory leaks
+        try:
+            if input_tensor is not None:
+                del input_tensor
+            if outputs is not None:
+                del outputs
+            if seg_mask is not None:
+                del seg_mask
+            if result_img is not None:
+                del result_img
+            if resized_pil is not None:
+                del resized_pil
+            if file_bytes is not None:
+                del file_bytes
+            gc.collect()  # Force garbage collection
+        except Exception as e:
+            print(str(e))
+            pass  # Don't let cleanup errors affect the response
 
-# Updated predict_json endpoint with structured logging and validation
+
 @app.post("/predict_json")
 async def predict_json(file: UploadFile = File(...)) -> dict:
     """JSON prediction endpoint with structured logging and comprehensive validation"""
     
-    # Generate unique request ID for tracing
     request_id = str(uuid.uuid4())[:8]
     start_time = datetime.utcnow()
     
+    # Variables for cleanup
+    file_bytes = None
+    input_tensor = None
+    resized_pil = None
+    outputs = None
+    seg_mask = None
+    result_img = None
+    
     try:
-        # Check model availability
         if model is None:
             log_error(request_id, "MODEL_UNAVAILABLE", "Model not loaded", "predict_json")
             raise HTTPException(status_code=503, detail="Model not available")
         
-        # Read file first to get size
         file_bytes = await file.read()
-        
-        # Log request start
         log_request_start(request_id, "predict_json", file.filename or "unknown", len(file_bytes))
         
-        # Comprehensive file validation
         try:
             validate_upload_file(file, file_bytes)
         except HTTPException as e:
             log_error(request_id, "VALIDATION_ERROR", e.detail, "predict_json")
             raise
         
-        # Process image
         try:
             input_tensor, resized_pil = preprocess_image(file_bytes)
         except Exception as e:
             log_error(request_id, "PREPROCESSING_ERROR", str(e), "predict_json")
             raise HTTPException(status_code=400, detail="Failed to process image - ensure it's a valid chest X-ray")
         
-        # Run inference
         try:
             with torch.no_grad():
                 outputs = model(input_tensor)
@@ -539,7 +553,6 @@ async def predict_json(file: UploadFile = File(...)) -> dict:
             pneumonia_prob = float(outputs["cls"][0, 0].item())
             seg_mask = outputs["mask"][0, 0].cpu().numpy()
             
-            # Validate model output
             if not (0.0 <= pneumonia_prob <= 1.0):
                 log_error(request_id, "MODEL_OUTPUT_ERROR", f"Invalid probability: {pneumonia_prob}", "predict_json")
                 raise HTTPException(status_code=500, detail="Invalid model output")
@@ -550,16 +563,12 @@ async def predict_json(file: UploadFile = File(...)) -> dict:
             log_error(request_id, "INFERENCE_ERROR", str(e), "predict_json")
             raise HTTPException(status_code=500, detail="Model prediction failed")
         
-        # Generate response
         try:
             result_img = create_overlay(resized_pil, seg_mask)
             base64_img = pil_to_base64(result_img)
             label = "PNEUMONIA" if pneumonia_prob >= 0.5 else "NORMAL"
             
-            # Calculate processing time
             processing_time = (datetime.utcnow() - start_time).total_seconds()
-            
-            # Log successful prediction
             log_prediction_result(request_id, label, pneumonia_prob, processing_time)
             
             return {
@@ -579,7 +588,28 @@ async def predict_json(file: UploadFile = File(...)) -> dict:
     except Exception as e:
         log_error(request_id, "UNEXPECTED_ERROR", str(e), "predict_json")
         raise HTTPException(status_code=500, detail="Internal server error")
+    
+    finally:
+        # Critical: Clean up large objects to prevent memory leaks
+        try:
+            if input_tensor is not None:
+                del input_tensor
+            if outputs is not None:
+                del outputs
+            if seg_mask is not None:
+                del seg_mask
+            if result_img is not None:
+                del result_img
+            if resized_pil is not None:
+                del resized_pil
+            if file_bytes is not None:
+                del file_bytes
+            gc.collect()  # Force garbage collection
+        except Exception as e:
+            # print("Error: ", e)
+            pass  # Don't let cleanup errors affect the response
 
+## CREDITS: Claude was used to generate parts of the code. Code was manually and thoroughly tested before deployment to ensure accuracy.
 
 # If you want to run via "python app.py" directly (instead of uvicorn app:app)
 # if __name__ == "__main__":
